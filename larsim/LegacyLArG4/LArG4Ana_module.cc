@@ -20,6 +20,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimEnergyDeposit.h"
 #include "lardataobj/Simulation/sim.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nug4/ParticleNavigation/ParticleList.h"
@@ -189,10 +190,13 @@ namespace larg4 {
     const sim::ParticleList& plist = pi_serv->ParticleList();
     art::ServiceHandle<geo::Geometry const> geom;
 
+
     // loop over all sim::SimChannels in the event and make sure there are no
     // sim::IDEs with trackID values that are not in the sim::ParticleList
-    auto const& sccol = evt.getProduct<std::vector<sim::SimChannel>>(fG4ModuleLabel);
-
+    //    auto const& sccol = evt.getProduct<std::vector<sim::SimChannel>>(fG4ModuleLabel);
+    // auto const& sccol = evt.getProduct<std::vector<sim::SimEnergyDeposit>>(fG4ModuleLabel);
+    
+    /*
     double totalCharge = 0.0;
     double totalEnergy = 0.0;
     fnumChannels->Fill(sccol.size());
@@ -214,20 +218,28 @@ namespace larg4 {
           scEnergy += idevec[iv].energy;
         }
       }
+
+      for (const auto& edep : sccol[i]) {
+        double depositedEnergy = edep.Energy();
+      }
       fnumIDEs->Fill(sc, numIDEs);
       fChannelCharge->Fill(sc, scCharge);
       fChannelEnergy->Fill(sc, scEnergy);
+      }
     }
     fEventCharge->Fill(totalCharge);
     fEventEnergy->Fill(totalEnergy);
+    */
 
-    // get the particles from the back tracker
-    const sim::ParticleList& Particles = pi_serv->ParticleList();
+    // get the particles from the module
+    auto const& Particles = evt.getProduct<std::vector<simb::MCParticle>>(fG4ModuleLabel);
     std::vector<const simb::MCParticle*> pvec;
     pvec.reserve(Particles.size());
-    for (const auto& PartPair : Particles) {
-      pvec.push_back(PartPair.second);
-      fPDGCodes->Fill(PartPair.second->PdgCode());
+    std::cout << "LArG4Ana::analyze() p list size is: " << Particles.size() << std::endl;
+
+    for (const auto& part : Particles) {
+      pvec.push_back(&part);
+      fPDGCodes->Fill(part.PdgCode());
     }
 
     // now look for pi0's that decay to 2 gammas

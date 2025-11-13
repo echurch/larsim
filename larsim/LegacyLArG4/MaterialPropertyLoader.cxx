@@ -150,6 +150,30 @@ namespace larg4 {
       G4Material* TheMaterial = volume->GetMaterial();
       std::string Material = TheMaterial->GetName();
 
+      std::string volLower = volume->GetName();
+
+      for (auto p = volLower.begin(); p != volLower.end(); ++p) {
+	*p = std::tolower(*p);
+	if (volLower.find("rock") != std::string::npos ||
+	    volLower.find("crete") != std::string::npos ||
+	    volLower.find("grout") != std::string::npos ||
+	    volLower.find("cryo") != std::string::npos ||
+	    volLower.find("shot") != std::string::npos ||
+	    volLower.find("dune") != std::string::npos ||
+	    volLower.find("radio") != std::string::npos ||
+	    volLower.find("beam") != std::string::npos ||  // I-Beams                                                                                                                
+	    ( (volLower.find("lar") != std::string::npos)  && !(volLower.find("arapuca") != std::string::npos))
+	    )
+	  {
+          // print out the mass of potentially interesting volues/materials                                                                                                        
+
+	    mf::LogInfo("MaterialPropertyLoader") << "Volume "
+                                                <<volume->GetName()
+                                                <<" made of Material "
+                                                << Material
+                                                << " weighs " << volume->GetMass(true,false,0) / CLHEP::kg * 1000. << " grams."  ;
+	  }
+      }
       //
       // create reflective surfaces corresponding to the volumes made of some
       // selected materials

@@ -68,6 +68,7 @@
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/CoreUtils/counter.h"
+#include "larcorealg/CoreUtils/enumerate.h"
 #include "larcorealg/Geometry/GeoNodePath.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/ROOTGeometryNavigator.h"
@@ -96,8 +97,6 @@
 #include "TH1D.h"
 #include "TLorentzVector.h"
 #include "TMath.h"
-
-#include "range/v3/view/enumerate.hpp"
 
 #include "CLHEP/Random/RandFlat.h"
 #include "CLHEP/Random/RandPoisson.h"
@@ -247,6 +246,7 @@ namespace evgen {
     std::vector<std::string> fNuclide; ///< List of nuclides to simulate.  Example:  "39Ar".
     std::vector<std::string>
       fMaterial; ///< List of regexes of materials in which to generate the decays.  Example: "LAr"
+    std::vector<std::string> fVolume;  ///< List of regexes of volumes in which to generate the decays.  Example: "LAr"                                                            
     std::vector<double> fBq; ///< Radioactivity in Becquerels (decay per sec) per cubic cm.
     std::vector<double> fT0; ///< Beginning of time window to simulate in ns
     std::vector<double> fT1; ///< End of time window to simulate in ns
@@ -304,11 +304,29 @@ namespace evgen {
     produces<std::vector<simb::MCTruth>>();
     produces<sumdata::RunData, art::InRun>();
 
+    try{
+      fVolume = pset.get< std::vector<std::string>>("Volume");
+    }
+    catch (...){
+      std::cout << "Volume is not in fcl file. It will be zero-length." << std::endl;
+    }
+
+    // check for consistency of vector sizes  
+
+
     auto const fPathToFile = pset.get<std::string>("PathToFile", "Radionuclides/");
     auto const nuclide = pset.get<std::vector<std::string>>("Nuclide");
     auto const material = pset.get<std::vector<std::string>>("Material");
     auto const Bq = pset.get<std::vector<double>>("BqPercc");
     auto t0 = pset.get<std::vector<double>>("T0", {});
+
+    unsigned int nsize = nuclide.size();
+    std::cout << "Volume, material, nuclide sizes are " << fVolume.size() << ", " << material.size()  << ", " << nuclide.size() << std::endl;
+    if (  material.size() != nsize ) throw cet::exception("RadioGen") << "Different size Material vector and Nuclide vector\n";
+
+    if (  fVolume.size() != nsize && fVolume.size() != 0 ) throw cet::exception("RadioGen") << "Volume must have 0 size or same size as Material and Nuclide vectors, currently now " << material.size() << " and " << nuclide.size() << "\n" ;
+
+
     auto t1 = pset.get<std::vector<double>>("T1", {});
 
     if (fPathToFile.find_last_of('/') !=
@@ -351,7 +369,7 @@ namespace evgen {
 
     std::size_t iNext = fX0.size();
     auto const volumes = pset.get<std::vector<std::string>>("Volumes", {});
-    for (auto&& [iVolume, volName] : volumes | ranges::views::enumerate) {
+    for (auto&& [iVolume, volName] : util::enumerate(volumes)) {
       // this expands the coordinate vectors
       auto const nVolumes = addvolume(volName);
       if (nVolumes == 0) {
@@ -373,8 +391,6 @@ namespace evgen {
       ++iNext;
     } // for
 
-    // check for consistency of vector sizes
-    unsigned int nsize = fNuclide.size();
     if (nsize == 0) {
       throw art::Exception(art::errors::Configuration) << "No nuclide configured!\n";
     }
@@ -551,7 +567,7 @@ namespace evgen {
       fabs(fBq[i] * (fT1[i] - fT0[i]) * (fX1[i] - fX0[i]) * (fY1[i] - fY0[i]) * (fZ1[i] - fZ0[i])) /
       1.0E9;
     long ndecays = poisson.shoot(rate);
-
+    int goodThrow(0);
     std::regex const re_material{fMaterial[i]};
     for (unsigned int idecay = 0; idecay < ndecays; idecay++) {
       // generate just one particle at a time.  Need a little recoding if a radioactive
@@ -559,16 +575,35 @@ namespace evgen {
       // uniformly distributed in position and time
       //
       // JStock: Leaving this as a single position for the decay products. For now I will assume they all come from the same spot.
-      TLorentzVector pos(
-        fX0[i] + flat.fire() * (fX1[i] - fX0[i]),
-        fY0[i] + flat.fire() * (fY1[i] - fY0[i]),
-        fZ0[i] + flat.fire() * (fZ1[i] - fZ0[i]),
-        (idecay == 0 && fIsFirstSignalSpecial) ? 0 : (fT0[i] + flat.fire() * (fT1[i] - fT0[i])));
+      TLorentzVector pos;
+      int cnt(0); 
+      bool decayInVol(false);
+      while (!decayInVol && cnt<1E6)
+	{
+	  cnt++;
+	  pos.SetXYZT(
+		      fX0[i] + flat.fire() * (fX1[i] - fX0[i]),
+		      fY0[i] + flat.fire() * (fY1[i] - fY0[i]),
+		      fZ0[i] + flat.fire() * (fZ1[i] - fZ0[i]),
+		      (idecay == 0 && fIsFirstSignalSpecial) ? 0 : (fT0[i] + flat.fire() * (fT1[i] - fT0[i])));
 
-      // discard decays that are not in the proper material
-      std::string volmaterial =
-        geomanager->FindNode(pos.X(), pos.Y(), pos.Z())->GetMedium()->GetMaterial()->GetName();
-      if (!std::regex_match(volmaterial, re_material)) continue;
+	  // discard decays that are not in the proper material
+	  std::string volmaterial =
+	    geomanager->FindNode(pos.X(), pos.Y(), pos.Z())->GetMedium()->GetMaterial()->GetName();
+	  //	  std::cout << " RadioGen::SampleOne(): volmaterial is "  << volmaterial << ", to be compared to re_material " << fMaterial[i] << std::endl;
+	  if (!std::regex_match(volmaterial, re_material)) continue;
+	  //	  std::cout << " RadioGen::SampleOne(): volmaterial is "  << volmaterial << ", favorably  compared to re_material " << fMaterial[i] << std::endl;
+	  decayInVol = true;
+	  goodThrow++;
+	}
+
+
+      if (fVolume.size()) {
+	std::string volume = geomanager->FindNode(pos.X(),pos.Y(),pos.Z())->GetVolume()->GetName();
+	//		std::cout  << "Wanting to Decay in volume  " << volume << " given " << fVolume[i] << std::endl;                                                                                                      
+	if (volume != fVolume[i]) continue;
+	//	std::cout  << "Continuing on to Decay in volume  " << volume << " given desired " << fVolume[i] << std::endl;                                                                                                      
+      }
 
       //Moved pdgid into the next statement, so that it is localized.
       // electron=11, photon=22, alpha = 1000020040, neutron = 2112
@@ -672,7 +707,10 @@ namespace evgen {
           mct.Add(part);
         } // end All standard cases.
       }   //End Loop over all particles produces in this single decay.
+
+
     }
+      std::cout << goodThrow << " good decays in desired volume in this event." << std::endl;
   }
 
   //Calculate an arbitrary direction with a given magnitude p
@@ -869,7 +907,8 @@ namespace evgen {
                gammaspectrum[inuc] != nullptr) {
         itype = 22; // gamma
         m = 0;
-        t = samplefromth1d(*gammaspectrum[inuc]) / 1000000.0;
+        t = samplefromth1d(*gammaspectrum[inuc]) / 1000000.0 ; 
+	  //	std::cout << "RadioGen_module gamma E: " << t << std::endl;
       }
       else if (neutronspectrum[inuc] != nullptr) {
         itype = 2112;
