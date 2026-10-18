@@ -465,6 +465,7 @@ namespace evgen {
         readfile(nuclideName, searchName, fPathToFile);
       }
     }
+
   }
 
   //____________________________________________________________________________
@@ -568,6 +569,7 @@ namespace evgen {
       1.0E9;
     long ndecays = poisson.shoot(rate);
     int goodThrow(0);
+    int actgoodThrow(0);
     std::regex const re_material{fMaterial[i]};
     for (unsigned int idecay = 0; idecay < ndecays; idecay++) {
       // generate just one particle at a time.  Need a little recoding if a radioactive
@@ -592,7 +594,7 @@ namespace evgen {
 	    geomanager->FindNode(pos.X(), pos.Y(), pos.Z())->GetMedium()->GetMaterial()->GetName();
 	  //	  std::cout << " RadioGen::SampleOne(): volmaterial is "  << volmaterial << ", to be compared to re_material " << fMaterial[i] << std::endl;
 	  if (!std::regex_match(volmaterial, re_material)) continue;
-	  //	  std::cout << " RadioGen::SampleOne(): volmaterial is "  << volmaterial << ", favorably  compared to re_material " << fMaterial[i] << std::endl;
+	  // std::cout << " RadioGen::SampleOne(): volmaterial is "  << volmaterial << ", favorably  compared to re_material " << fMaterial[i] << std::endl;
 	  decayInVol = true;
 	  goodThrow++;
 	}
@@ -600,9 +602,13 @@ namespace evgen {
 
       if (fVolume.size()) {
 	std::string volume = geomanager->FindNode(pos.X(),pos.Y(),pos.Z())->GetVolume()->GetName();
-	//		std::cout  << "Wanting to Decay in volume  " << volume << " given " << fVolume[i] << std::endl;                                                                                                      
-	if (volume != fVolume[i]) continue;
-	//	std::cout  << "Continuing on to Decay in volume  " << volume << " given desired " << fVolume[i] << std::endl;                                                                                                      
+	//	std::cout  << "RadioGen_module_EC: Wanting to Decay in volume  " << volume << " given " << fVolume[i] << std::endl;                                                                                                      
+
+	  if (volume.find(fVolume[i]) == std::string::npos)
+	    continue;
+	  //std::cout  << "RadioGen_module_EC: Continuing on to Decay in volume  " << volume << " given desired " << fVolume[i] << std::endl;
+
+	actgoodThrow++;                                
       }
 
       //Moved pdgid into the next statement, so that it is localized.
@@ -684,6 +690,7 @@ namespace evgen {
         v_prods.push_back(partMassMom);
       } //end else (not RN or other special case
 
+
       //JStock: Modify this to now loop over the v_prods.
       for (auto prodEntry : v_prods) {
         // set track id to a negative serial number as these are all primary particles and have id <= 0
@@ -710,7 +717,7 @@ namespace evgen {
 
 
     }
-      std::cout << goodThrow << " good decays in desired volume in this event." << std::endl;
+    std::cout << goodThrow << " good decays in desired material in this event. " << actgoodThrow << " of them in desired volume. " << std::endl;
   }
 
   //Calculate an arbitrary direction with a given magnitude p
@@ -737,8 +744,10 @@ namespace evgen {
   {
     bool found{false};
     std::regex const re_argon{"42Ar.*"};
+    std::cout << "RadioGen_EC::readfile() possible nuclide list ";
     for (size_t i = 0; i < fNuclide.size(); i++) {
       if (
+	  std::cout  << fNuclide[i];
         fNuclide[i] ==
         nuclide) { //This check makes sure that the nuclide we are searching for is in fact in our fNuclide list. Ar42 handeled separately.
         found = true;
@@ -749,6 +758,8 @@ namespace evgen {
         break;
       }
     }
+    std::cout << std::endl;
+    std::cout << "RadioGen_EC::readfile() nuclide is " << nuclide << " and found is " << found << std::endl;
     if (!found) return;
 
     Bool_t addStatus = TH1::AddDirectoryStatus();
@@ -762,6 +773,9 @@ namespace evgen {
     fn2 += filename;
     std::string fullname;
     sp.find_file(fn2, fullname);
+    mf::LogInfo("RadioGen_EC") << "Nuclide " << nuclide << ": spectrum file " << fn2
+			    << " resolved to " << fullname;
+
     struct stat sb;
     if (fullname.empty() || stat(fullname.c_str(), &sb) != 0)
       throw cet::exception("RadioGen")
@@ -772,7 +786,10 @@ namespace evgen {
     TGraph* betagraph = (TGraph*)f.Get("Betas");
     TGraph* gammagraph = (TGraph*)f.Get("Gammas");
     TGraph* neutrongraph = (TGraph*)f.Get("Neutrons");
-
+    mf::LogInfo("RadioGen_EC") << "  Alphas=" << (alphagraph ? "ok" : "MISSING")
+			    << " Betas="   << (betagraph  ? "ok" : "MISSING")
+			    << " Gammas="  << (gammagraph ? "ok" : "MISSING")
+			    << " Neutrons="<< (neutrongraph ? "ok" : "MISSING");
     if (alphagraph) {
       int np = alphagraph->GetN();
       double* y = alphagraph->GetY();
