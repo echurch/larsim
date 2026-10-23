@@ -145,7 +145,7 @@ namespace larg4 {
     fTheCerenkovProcess->SetMaxBetaChangePerStep(10.0);
     fTheCerenkovProcess->SetTrackSecondariesFirst(false);
 
-    fTheScintillationProcess->SetScintillationYieldFactor(1.);
+    //    fTheScintillationProcess->SetScintillationYieldFactor(1.);
     fTheScintillationProcess->SetTrackSecondariesFirst(false);
 
     // Use Birks Correction in the Scintillation process

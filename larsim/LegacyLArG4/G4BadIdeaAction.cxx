@@ -13,6 +13,7 @@
 #include "Geant4/G4StepPoint.hh"
 #include "Geant4/G4ThreeVector.hh"
 #include "Geant4/G4Track.hh"
+#include "Geant4/G4String.hh"
 
 namespace larg4 {
 
@@ -87,7 +88,7 @@ namespace larg4 {
       if (thePostPV) thePostPVname = thePostPV->GetName();
 
       if (abs(step->GetTrack()->GetDynamicParticle()->GetPDGcode()) == 13 &&
-          thePostPVname.contains("volTPCActive") && !thePrePVname.contains("volTPCActive"))
+	  G4StrUtil::contains(thePostPVname,"volTPCActive") && !! G4StrUtil::contains(thePrePVname,"volTPCActive"))
         ((G4Track*)nonConstTrack)->SetTrackStatus(fStopAndKill);
     }
 

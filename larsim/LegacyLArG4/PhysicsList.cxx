@@ -23,6 +23,7 @@
 #include "Geant4/G4ChargeExchange.hh"
 #include "Geant4/G4ChargeExchangeProcess.hh"
 #include "Geant4/G4ProcessManager.hh"
+#include "Geant4/G4ChargeExchangeXS.hh"
 
 ///#include "nug4/G4Base/G4PhysListFactorySingleton.hh"
 ///PHYSLISTREG3(larg4, PhysicsList, larg4::PhysicsList)
@@ -141,7 +142,8 @@ namespace larg4 {
         if (cE) {
           mf::LogInfo("PhysicsList: ")
             << "Turning on ChargeExchange for " << particle->GetParticleName() << "s.";
-          G4ChargeExchange* model = new G4ChargeExchange();
+	  G4ChargeExchangeXS* xs = new G4ChargeExchangeXS();
+          G4ChargeExchange* model = new G4ChargeExchange(xs);
           G4ChargeExchangeProcess* p = new G4ChargeExchangeProcess();
 
           p->RegisterMe(model);

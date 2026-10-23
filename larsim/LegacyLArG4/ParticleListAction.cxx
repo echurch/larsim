@@ -370,7 +370,7 @@ namespace larg4 {
     // for this, look at the process name for the step, and compare it
     // against the voxelization process name (set in PhysicsList.cxx).
     G4String process = step->GetPostStepPoint()->GetProcessDefinedStep()->GetProcessName();
-    G4bool ignoreProcess = process.contains("LArVoxel") || process.contains("OpDetReadout");
+    G4bool ignoreProcess = G4StrUtil::contains(process,"LArVoxel") || G4StrUtil::contains(process,"OpDetReadout");
 
     MF_LOG_DEBUG("ParticleListAction::SteppingAction")
       << ": DEBUG - process='" << process << "'"

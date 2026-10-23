@@ -6,6 +6,8 @@ cet_write_plugin_builder(lar::ScintTimeTool art::tool Modules
 
 include (lar::ScintTimeTool)
 
+include_directories($ENV{CLHEP_INC})
+
 cet_build_plugin(ScintTimeLAr lar::ScintTimeTool
   LIBRARIES PRIVATE
   fhiclcpp::fhiclcpp

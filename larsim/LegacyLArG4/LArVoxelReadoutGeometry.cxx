@@ -36,6 +36,7 @@
 #include "Geant4/G4Tubs.hh"
 #include "Geant4/G4VSolid.hh"
 #include "Geant4/G4VisAttributes.hh"
+#include "Geant4/G4String.hh"
 
 constexpr bool DisableVoxelCaching = false;
 
@@ -422,7 +423,7 @@ namespace larg4 {
     for (G4int i = 0; i != numberDaughters; ++i) {
       G4VPhysicalVolume* d = logicalVolume->GetDaughter(i);
 
-      if (d->GetName().contains(daughterName)) {
+      if (G4StrUtil::contains(d->GetName(),daughterName.c_str())) {
 
         // check that this cryostat is the requested one using fCryostat
         G4ThreeVector translation = d->GetObjectTranslation();

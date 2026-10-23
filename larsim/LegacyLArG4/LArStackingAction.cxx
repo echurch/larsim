@@ -126,7 +126,7 @@ G4ClassificationOfNewTrack LArStackingAction::ClassifyNewTrack(const G4Track* aT
     auto const& tpc = geom->TPC({0, 0});
     if (volName.Contains(tpc.ActiveVolume()->GetName()) && aTrack->GetParentID() != 0) {
       classification = fUrgent;
-      if (fStack & 0x4 && aTrack->GetCreatorProcess()->GetProcessName().contains("muIoni")) {
+      if (fStack & 0x4 && G4StrUtil::contains(aTrack->GetCreatorProcess()->GetProcessName(),"muIoni")) {
         classification = fKill;
       }
       break;
@@ -137,7 +137,7 @@ G4ClassificationOfNewTrack LArStackingAction::ClassifyNewTrack(const G4Track* aT
     }
     // Leave this here, even though I claim we've Killed these in stage 2.
     if (aTrack->GetDefinition()->GetPDGEncoding() == 11 &&
-        aTrack->GetCreatorProcess()->GetProcessName().contains("muIoni")) {
+        G4StrUtil::contains(aTrack->GetCreatorProcess()->GetProcessName(),"muIoni")) {
       classification = fKill;
       break;
     }
